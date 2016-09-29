@@ -1,5 +1,5 @@
 import Rx from 'rx';
-
+import pinyin from 'pinyin-browser';
 
 /* Graphics */
 
@@ -9,6 +9,8 @@ context.fillStyle = 'pink';
 
 const PADDLE_WIDTH = 100;
 const PADDLE_HEIGHT = 20;
+const PADDLE_OFFSET_FROM_FLOOR = 160;
+const TILE_OFFSET_FROM_CEILING = 300;
 
 const BALL_RADIUS = 10;
 
@@ -16,11 +18,35 @@ const BRICK_ROWS = 5;
 const BRICK_COLUMNS = 7;
 const BRICK_HEIGHT = 20;
 const BRICK_GAP = 3;
+const BRICK_CHARACTER_OFFSET = 6;
+
+const TILE_PINYIN_OFFSET = 18;
+
+// https://www.frankmitchell.org/2015/01/fisher-yates/
+// Fisher-Yates shuffle
+function shuffle (array) {
+  var i = 0
+    , j = 0
+    , temp = null
+
+  for (i = array.length - 1; i > 0; i -= 1) {
+    j = Math.floor(Math.random() * (i + 1))
+    temp = array[i]
+    array[i] = array[j]
+    array[j] = temp
+  }
+}
+
+const VOCAB = [...'的一是不了在人' +
+              '有我他这个们中' +
+              '来上大为和国地' +
+              '到以说时要就出' +
+              '会可也你对生能'];
 
 function drawTitle() {
     context.textAlign = 'center';
     context.font = '24px Courier New';
-    context.fillText('rxjs breakout', canvas.width / 2, canvas.height / 2 - 24);
+    context.fillText('rxjs wall', canvas.width / 2, canvas.height / 2 - 24);
 }
 
 function drawControls() {
@@ -39,7 +65,9 @@ function drawGameOver(text) {
 function drawAuthor() {
     context.textAlign = 'center';
     context.font = '16px Courier New';
-    context.fillText('by Manuel Wieser', canvas.width / 2, canvas.height / 2 + 24);
+    context.fillText('Based on rxjs-breakout by Manuel Wieser',
+                     canvas.width / 2,
+                     canvas.height / 2 + 24);
 }
 
 function drawScore(score) {
@@ -52,7 +80,7 @@ function drawPaddle(position) {
     context.beginPath();
     context.rect(
         position - PADDLE_WIDTH / 2,
-        context.canvas.height - PADDLE_HEIGHT,
+        context.canvas.height - PADDLE_HEIGHT - PADDLE_OFFSET_FROM_FLOOR,
         PADDLE_WIDTH,
         PADDLE_HEIGHT
     );
@@ -75,12 +103,44 @@ function drawBrick(brick) {
         brick.width,
         brick.height
     );
-    context.fill();
+    if (!brick.ready) {
+        context.stroke();
+    }
+    context.fillText(brick.character,
+                     brick.x - BRICK_CHARACTER_OFFSET ,
+                     brick.y + BRICK_CHARACTER_OFFSET);
+    context.closePath();
+}
+
+// A tile displays a character's pinyin and when clicked on, makes the brick
+// ready to evaporate - think of a suitable name for that state!
+function drawTile(tile) {
+    context.beginPath();
+    context.rect(
+        tile.x - tile.width / 2,
+        tile.y - tile.height / 2,
+        tile.width,
+        tile.height
+    );
+    context.stroke();
+    if (!tile.brick.ready) {
+        context.fillText(tile.pinyin,
+                         tile.x - TILE_PINYIN_OFFSET,
+                         tile.y + BRICK_CHARACTER_OFFSET);
+    }
     context.closePath();
 }
 
 function drawBricks(bricks) {
-    bricks.forEach((brick) => drawBrick(brick));
+    bricks.forEach((brick) => {
+        drawBrick(brick);
+    });
+}
+
+function drawTiles(tiles) {
+    tiles.forEach((tile) => {
+        drawTile(tile);
+    });
 }
 
 
@@ -105,7 +165,7 @@ beeper.sample(100).subscribe((key) => {
 
 /* Ticker */
 
-const TICKER_INTERVAL = 17;
+const TICKER_INTERVAL = /*17*/100;
 
 const ticker$ = Rx.Observable
     .interval(TICKER_INTERVAL, Rx.Scheduler.requestAnimationFrame)
@@ -134,16 +194,32 @@ const input$ = Rx.Observable
         Rx.Observable.fromEvent(document, 'keydown', event => {
             switch (event.keyCode) {
                 case PADDLE_KEYS.left:
+                    console.log('left');
                     return -1;
                 case PADDLE_KEYS.right:
+                    console.log('right');
                     return 1;
                 default:
+                    console.log('something else:' + event.keyCode);
                     return 0;
             }
         }),
         Rx.Observable.fromEvent(document, 'keyup', event => 0)
     )
     .distinctUntilChanged();
+
+  const mouseClicked$ = Rx.Observable.merge(
+    Rx.Observable.fromEvent(document, 'mousedown', event => {
+        console.log('m$ mouse down:' + event
+                    + 'x = ' + event.offsetX
+                    + ' y = ' + event.clientY);
+        return event;
+    }),
+    Rx.Observable.fromEvent(document, 'mouseup', event => {
+        console.log('m$ mouse up:' + event);
+        return null;
+    })
+  );
 
 const paddle$ = ticker$
     .withLatestFrom(input$)
@@ -155,10 +231,9 @@ const paddle$ = ticker$
     }, canvas.width / 2)
     .distinctUntilChanged();
 
-
 /* Ball */
 
-const BALL_SPEED = 60;
+const BALL_SPEED = /*60*/15;
 const INITIAL_OBJECTS = {
     ball: {
         position: {
@@ -170,19 +245,37 @@ const INITIAL_OBJECTS = {
             y: 2
         }
     },
-    bricks: factory(),
+    bricks: brickFactory(),
     score: 0
 };
+
+INITIAL_OBJECTS.tiles = tileFactory(INITIAL_OBJECTS.bricks);
 
 function hit(paddle, ball) {
     return ball.position.x > paddle - PADDLE_WIDTH / 2
         && ball.position.x < paddle + PADDLE_WIDTH / 2
-        && ball.position.y > canvas.height - PADDLE_HEIGHT - BALL_RADIUS / 2;
+        && ball.position.y > canvas.height - PADDLE_OFFSET_FROM_FLOOR - PADDLE_HEIGHT - BALL_RADIUS / 2;
 }
 
 const objects$ = ticker$
-    .withLatestFrom(paddle$)
-    .scan(({ball, bricks, collisions, score}, [ticker, paddle]) => {
+    .combineLatest(paddle$, mouseClicked$)
+    .scan(({ball, bricks, tiles, collisions, score}, [ticker, paddle, mouseClicked]) => {
+
+        var logMessage = 'object$ scan: mouseClicked = ' + mouseClicked;
+        if (mouseClicked !== null) {
+                     logMessage += 'x = ' + mouseClicked.offsetX
+                                + ' y = ' + mouseClicked.clientY;
+            console.log(logMessage);
+            tiles.forEach(tile => {
+                if (tile.x - tile.width / 2 < mouseClicked.offsetX &&
+                    mouseClicked.offsetX < tile.x + tile.width / 2 &&
+                    tile.y - tile.height / 2 < mouseClicked.clientY &&
+                     mouseClicked.clientY < tile.y + tile.height / 2) {
+                         console.log('Found it!:' + tile.pinyin + '=' + tile.brick.character);
+                         tile.brick.ready = true;
+                }
+            })
+        }
 
         let survivors = [];
         collisions = {
@@ -199,15 +292,26 @@ const objects$ = ticker$
         bricks.forEach((brick) => {
             if (!collision(brick, ball)) {
                 survivors.push(brick);
-            } else {
-                collisions.brick = true;
-                score = score + 10;
             }
+
+            if(collision(brick, ball)) {
+                collisions.brick = true;
+                if (brick.ready) {
+                    console.log(brick.character + ' = ' + /*cjst.chineseToPinyin*/pinyin(brick.character));
+                    score = score + 10;
+                } else {
+                    console.log('brick ' + brick.character + 'not ready...');
+                    survivors.push(brick);
+                }
+
+            }
+
         });
 
         collisions.paddle = hit(paddle, ball);
 
-        if (ball.position.x < BALL_RADIUS || ball.position.x > canvas.width - BALL_RADIUS) {
+        if (ball.position.x < BALL_RADIUS ||
+            ball.position.x > canvas.width - BALL_RADIUS) {
             ball.direction.x = -ball.direction.x;
             collisions.wall = true;
         }
@@ -221,6 +325,7 @@ const objects$ = ticker$
         return {
             ball: ball,
             bricks: survivors,
+            tiles: tiles,
             collisions: collisions,
             score: score
         };
@@ -230,7 +335,7 @@ const objects$ = ticker$
 
 /* Bricks */
 
-function factory() {
+function brickFactory() {
     let width = (canvas.width - BRICK_GAP - BRICK_GAP * BRICK_COLUMNS) / BRICK_COLUMNS;
     let bricks = [];
 
@@ -240,7 +345,9 @@ function factory() {
                 x: j * (width + BRICK_GAP) + width / 2 + BRICK_GAP,
                 y: i * (BRICK_HEIGHT + BRICK_GAP) + BRICK_HEIGHT / 2 + BRICK_GAP + 20,
                 width: width,
-                height: BRICK_HEIGHT
+                height: BRICK_HEIGHT,
+                character: VOCAB[i * BRICK_COLUMNS + j],
+                ready: false
             });
         }
     }
@@ -255,6 +362,33 @@ function collision(brick, ball) {
         && ball.position.y + ball.direction.y < brick.y + brick.height / 2;
 }
 
+function tileFactory(bricks) {
+    let width = (canvas.width - BRICK_GAP - BRICK_GAP * BRICK_COLUMNS) / BRICK_COLUMNS;
+    let tiles = [];
+    let shuffled = [];
+
+    bricks.forEach(brick => {
+        shuffled.push(brick);
+    })
+
+    shuffle(shuffled);
+
+    for (let i = 0; i < BRICK_ROWS; i++) {
+        for (let j = 0; j < BRICK_COLUMNS; j++) {
+            tiles.push({
+                x: j * (width + BRICK_GAP) + width / 2 + BRICK_GAP,
+                y: i * (BRICK_HEIGHT + BRICK_GAP) + BRICK_HEIGHT / 2 + BRICK_GAP + 20 + TILE_OFFSET_FROM_CEILING,
+                width: width,
+                height: BRICK_HEIGHT,
+                brick: shuffled[i * BRICK_COLUMNS + j],
+                pinyin: pinyin(shuffled[i * BRICK_COLUMNS + j].character)
+            });
+        }
+    }
+
+    return tiles;
+}
+
 
 /* Game */
 
@@ -262,16 +396,24 @@ drawTitle();
 drawControls();
 drawAuthor();
 
-function update([ticker, paddle, objects]) {
+function update([ticker, paddle, objects, mouseClicked]) {
+
+    var logMessage = 'update(): mouseClicked = ' + mouseClicked;
+    if (mouseClicked !== null) {
+                 logMessage += 'x = ' + mouseClicked.offsetX
+                            + ' y = ' + mouseClicked.clientY;
+    }
+    console.log(logMessage);
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
     drawPaddle(paddle);
     drawBall(objects.ball);
     drawBricks(objects.bricks);
+    drawTiles(objects.tiles);
     drawScore(objects.score);
 
-    if (objects.ball.position.y > canvas.height - BALL_RADIUS) {
+    if (objects.ball.position.y > canvas.height - PADDLE_OFFSET_FROM_FLOOR - BALL_RADIUS) {
         beeper.onNext(28);
         drawGameOver('GAME OVER');
         game.dispose();
@@ -290,6 +432,6 @@ function update([ticker, paddle, objects]) {
 }
 
 const game = Rx.Observable
-    .combineLatest(ticker$, paddle$, objects$)
+    .combineLatest(ticker$, paddle$, objects$, mouseClicked$)
     .sample(TICKER_INTERVAL)
     .subscribe(update);

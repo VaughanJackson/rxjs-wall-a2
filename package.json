@@ -1,14 +1,14 @@
 {
-  "name": "rxjs-breakout",
+  "name": "rxjs-wall",
   "version": "1.0.0",
-  "description": "RxJS Breakout Implementation",
+  "description": "RxJS Breakout Implementation - adapted to help learn 汉字",
   "scripts": {
     "start": "budo app.js:index.js --live --open -- -t [ babelify --presets [ es2015 ] ]"
   },
   "author": {
-    "name": "Manuel Wieser",
-    "email": "office@manuelwieser.com",
-    "url": "http://manu.ninja/"
+    "name": "Vaughan Jackson",
+    "email": "vaughanjackson2001@yahoo.com",
+    "url": "http://www.pandaacademy.co.uk"
   },
   "license": "MIT",
   "devDependencies": {
@@ -17,5 +17,12 @@
     "browserify": "^13.0.0",
     "budo": "^8.1.0",
     "rx": "^4.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VaughanJackson/rxjs-wall"
+  },
+  "dependencies": {
+    "pinyin-browser": "^1.0.5"
   }
 }
