@@ -1,6 +1,12 @@
 The MIT License (MIT)
 
 Copyright (c) 2016 Manuel Wieser
+Copyright (c) 2016 Vaughan Jackson
+
+Copyright for portions of project rxjs-wall
+(https://github.com/VaughanJackson/rxjs-wall) are held by Manuel Wieser, 2016
+as part of project rxjs-breakout (https://github.com/Lorti/rxjs-breakout). All
+other copyright for project rxjs-wall are held by Vaughan Jackson, 2016.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
