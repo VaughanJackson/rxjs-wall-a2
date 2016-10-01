@@ -1,14 +1,12 @@
-# RxJS Breakout
+# RxJS Wall
 
-[Breakout](https://en.wikipedia.org/wiki/Breakout_(video_game)) using [Functional Reactive Programming](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) and RxJS
-
-This is my first take on game programming with RxJS, so your feedback and pull requests are highly appreciated.
+* My first attempt at reactive functional programming, based on [Manuel Wieser's RxJS Breakout](https://manu.ninja/functional-reactive-game-programming-rxjs-breakout).
+* Adapt's Manuel Wieser's game so that it could possibly make revising 汉字 more interesting for young learners.
+* To experiment with/further develop this game, do the following:
 
 ```
-git clone https://github.com/Lorti/rxjs-breakout.git
-cd rxjs-breakout
+git clone https://github.com/VaughanJackson/rxjs-wall.git
+cd rxjs-wall
 npm install
 npm start
 ```
-
-![Everything is a stream](https://camo.githubusercontent.com/e581baffb3db3e4f749350326af32de8d5ba4363/687474703a2f2f692e696d6775722e636f6d2f4149696d5138432e6a7067)
