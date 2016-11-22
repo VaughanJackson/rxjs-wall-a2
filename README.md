@@ -10,11 +10,11 @@ git clone https://github.com/VaughanJackson/rxjs-wall-a2.git
 cd rxjs-wall
 npm install
 npm start (or ng serve)
--```
+```
 
 # angular-cli generated README content
 
-## RxjsWallA2 - The 
+## RxjsWallA2
 
 This project was generated with [angular-cli](https://github.com/angular/angular-cli) version 1.0.0-beta.16.
 
