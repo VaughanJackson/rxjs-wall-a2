@@ -17,7 +17,6 @@ const BRICK_CHARACTER_OFFSET = 6;
 
 const TILE_PINYIN_OFFSET = 18;
 
-/* TODO Do I need to make this an array before I can use it? */
 const VOCAB = '的一是不了在人' +
               '有我他这个们中' +
               '来上大为和国地' +
@@ -34,17 +33,12 @@ const PADDLE_KEYS = {
     right: 39
 };
 
-
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
-
-    /*private title = 'app works!: pinyin(汉语) = ' +
-        pinyin('汉语') +
-        "pinyin.compare('语', '语') = " + pinyin.compare('语', '语');*/
 
      // Canvas dimensions.
      // TODO This doesn't change the canvas dimensions until after
@@ -92,8 +86,6 @@ export class AppComponent implements OnInit {
          /* Sounds */
 
          this.audioContext = new AudioContext();
-
-         // TODO This subscription causes error_handler.js:51 TypeError: unknown type returned
          this.beeper = new Rx.Subject();
          this.beeper.sample(Rx.Observable.interval(100)).subscribe((key : number) => {
              const audio = this.audioContext;
@@ -163,9 +155,9 @@ export class AppComponent implements OnInit {
          .scan((position, [ticker, direction]) => {
 
              let next = position + direction * ticker.deltaTime * PADDLE_SPEED;
-             return Math.max(Math.min(next, this/*.canvas*/.width - PADDLE_WIDTH / 2), PADDLE_WIDTH / 2);
+             return Math.max(Math.min(next, this.width - PADDLE_WIDTH / 2), PADDLE_WIDTH / 2);
 
-         }, this/*.canvas*/.width / 2)
+         }, this.width / 2)
          .distinctUntilChanged();
 
          /* Ball */
@@ -174,8 +166,8 @@ export class AppComponent implements OnInit {
          const INITIAL_OBJECTS = {
              ball: {
                  position: {
-                     x: this/*.canvas*/.width / 2,
-                     y: this/*.canvas*/.height / 2
+                     x: this.width / 2,
+                     y: this.height / 2
                  },
                  direction: {
                      x: 2,
@@ -236,7 +228,7 @@ export class AppComponent implements OnInit {
                      if(this.collision(brick, ball)) {
                          collisions.brick = true;
                          if (brick.ready) {
-                             console.log(brick.character + ' = ' + /*cjst.chineseToPinyin*/pinyin(brick.character));
+                             console.log(brick.character + ' = ' + pinyin(brick.character));
                              score = score + 10;
                          } else {
                              console.log('brick ' + brick.character + 'not ready...');
@@ -250,7 +242,7 @@ export class AppComponent implements OnInit {
                  collisions.paddle = this.hit(paddle, ball);
 
                  if (ball.position.x < BALL_RADIUS ||
-                     ball.position.x > this/*.canvas*/.width - BALL_RADIUS) {
+                     ball.position.x > this.width - BALL_RADIUS) {
                      ball.direction.x = -ball.direction.x;
                      collisions.wall = true;
                  }
@@ -271,27 +263,32 @@ export class AppComponent implements OnInit {
 
              }, INITIAL_OBJECTS);
 
-             /* Game */
+  }
 
-             this.drawTitle();
-             this.drawControls();
-             this.drawAuthor();
+  ngAfterViewInit() {
 
-             this.game = Rx.Observable
-                 .combineLatest(this.ticker$, this.paddle$, this.objects$, this.mouseClicked$)
-                 .sample(Rx.Observable.interval(TICKER_INTERVAL))
-                 .subscribe( value => { /*console.log('called with ' + JSON.stringify(value));*/
-                                        this.update(value);
-                                      },
-                             error => { console.log('error:' + error); },
-                             () => { console.log('completed.'); } );
+    /* Game */
 
-     }
+    this.drawTitle();
+    this.drawControls();
+    this.drawAuthor();
+
+    this.game = Rx.Observable
+        .combineLatest(this.ticker$,
+          this.paddle$, this.objects$, this.mouseClicked$)
+        .sample(Rx.Observable.interval(TICKER_INTERVAL))
+        .subscribe( value => { this.update(value); },
+                    error => { console.log('error:' + error); },
+                    () => { console.log('completed.'); } );
+
+  }
+
+
 
   hit(paddle, ball) {
       return ball.position.x > paddle - PADDLE_WIDTH / 2
           && ball.position.x < paddle + PADDLE_WIDTH / 2
-          && ball.position.y > this/*.canvas*/.height - PADDLE_OFFSET_FROM_FLOOR - PADDLE_HEIGHT - BALL_RADIUS / 2;
+          && ball.position.y > this.height - PADDLE_OFFSET_FROM_FLOOR - PADDLE_HEIGHT - BALL_RADIUS / 2;
   }
 
   /* Bricks */
@@ -370,28 +367,28 @@ export class AppComponent implements OnInit {
   drawTitle() {
       this.context.textAlign = 'center';
       this.context.font = '24px Courier New';
-      this.context.fillText('rxjs wall', this/*.canvas*/.width / 2, this/*.canvas*/.height / 2 - 24);
+      this.context.fillText('rxjs wall', this.width / 2, this.height / 2 - 24);
   }
 
   drawControls() {
       this.context.textAlign = 'center';
       this.context.font = '16px Courier New';
-      this.context.fillText('press [<] and [>] to play', this/*.canvas*/.width / 2, this/*.canvas*/.height / 2);
+      this.context.fillText('press [<] and [>] to play', this.width / 2, this.height / 2);
   }
 
   drawGameOver(text) {
-      this.context.clearRect(this/*.canvas*/.width / 4, this/*.canvas*/.height / 3, this/*.canvas*/.width / 2, this/*.canvas*/.height / 3);
+      this.context.clearRect(this.width / 4, this.height / 3, this.width / 2, this.height / 3);
       this.context.textAlign = 'center';
       this.context.font = '24px Courier New';
-      this.context.fillText(text, this/*.canvas*/.width / 2, this/*.canvas*/.height / 2);
+      this.context.fillText(text, this.width / 2, this.height / 2);
   }
 
   drawAuthor() {
       this.context.textAlign = 'center';
       this.context.font = '16px Courier New';
       this.context.fillText('Based on rxjs-breakout by Manuel Wieser',
-                            this/*.canvas*/.width / 2,
-                            this/*.canvas*/.height / 2 + 24);
+                            this.width / 2,
+                            this.height / 2 + 24);
   }
 
   drawScore(score) {
@@ -478,7 +475,7 @@ export class AppComponent implements OnInit {
       }
       console.log(logMessage);
 
-      this.context.clearRect(0, 0, this/*.canvas*/.width, this/*.canvas*/.height);
+      this.context.clearRect(0, 0, this.width, this.height);
 
       this.drawPaddle(paddle);
       this.drawBall(objects.ball);
@@ -486,7 +483,7 @@ export class AppComponent implements OnInit {
       this.drawTiles(objects.tiles);
       this.drawScore(objects.score);
 
-      if (objects.ball.position.y > this/*.canvas*/.height - PADDLE_OFFSET_FROM_FLOOR - BALL_RADIUS) {
+      if (objects.ball.position.y > this.height - PADDLE_OFFSET_FROM_FLOOR - BALL_RADIUS) {
           this.beeper.next(28);
           this.drawGameOver('GAME OVER');
           this.game.unsubscribe();
