@@ -34,6 +34,7 @@ const PADDLE_KEYS = {
     right: 39
 };
 
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -183,6 +184,13 @@ export class AppComponent implements OnInit {
              },
              bricks: this.brickFactory(),
              tiles: [],
+             collisions: {
+                 paddle: false,
+                 floor: false,
+                 wall: false,
+                 ceiling: false,
+                 brick: false
+             },
              score: 0
          };
 
