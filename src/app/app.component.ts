@@ -78,8 +78,6 @@ export class AppComponent implements OnInit {
      ngOnInit() {
          this.canvas = this.el.nativeElement.querySelector('canvas');
          this.context = this.canvas.getContext('2d');
-         // TODO Why doesn't this set the fill style?
-         this.context.fillStyle = 'pink';
 
          this.position = 50;
 
@@ -266,6 +264,10 @@ export class AppComponent implements OnInit {
   }
 
   ngAfterViewInit() {
+
+    // This needs to be set after canvas has been initialised?
+    // Did not work when called earlier in ngOnInit().
+    this.context.fillStyle = 'pink';
 
     /* Game */
 
